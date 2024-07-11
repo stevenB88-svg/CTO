@@ -27,8 +27,8 @@ jobs:
       docker push $(ECR_REGISTRY)/$(ECR_REPOSITORY):$(IMAGE_TAG)
     displayName: 'Build, Tag, and Push Docker Image'
     env:
-      AWS_ACCESS_KEY_ID: ${{ AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
       AWS_REGION: $(AWS_REGION)
       ECR_REGISTRY: ${{ steps.login_ecr.outputs.registry }}
 
@@ -41,8 +41,8 @@ jobs:
       aws ecs update-service --cluster deploy-cluster --service services-deploy --task-definition tarea-deploy --force-new-deployment
     displayName: 'Update ECS Service'
     env:
-      AWS_ACCESS_KEY_ID: ${{ AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
       AWS_REGION: $(AWS_REGION)
 
 - job: deploy_to_ecs_testing
@@ -54,6 +54,6 @@ jobs:
       aws ecs update-service --cluster deploy-cluster --service services-deploy --task-definition tarea-deploy --force-new-deployment
     displayName: 'Update ECS Service'
     env:
-      AWS_ACCESS_KEY_ID: ${{ AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
       AWS_REGION: $(AWS_REGION)
