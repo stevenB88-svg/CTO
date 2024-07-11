@@ -1,59 +1,28 @@
-name: Deploy Node.js on ECR
+name: Deploy to Amazon ECR
 
 trigger:
   branches:
     include:
-      - develop
-     
-
-variables:
-  AWS_REGION: 'us-east-1'
-  ECR_REPOSITORY: 'ambientes'
-  IMAGE_TAG: 'latest'
-  
-pool:
-  vmImage: 'ubuntu-latest'
+      - main  # Cambiar por la rama principal de tu repositorio
 
 jobs:
 - job: build_and_push_image
-  displayName: 'Build and Push Image to ECR'
+  displayName: 'Build and Push Docker Image to ECR'
+  pool:
+    vmImage: 'ubuntu-latest'
   steps:
   - checkout: self
-  
+
   - script: |
-      npm install
-      docker build -t $(ECR_REGISTRY)/$(ECR_REPOSITORY):$(IMAGE_TAG) .
-      docker login -u AWS -p $(AWS_ACCESS_KEY_ID) -e none $(ECR_REGISTRY)
-      docker push $(ECR_REGISTRY)/$(ECR_REPOSITORY):$(IMAGE_TAG)
+      # Instalar dependencias, si es necesario
+      # npm install, por ejemplo
+      docker build -t my-ecr-repo:latest .
+      docker login -u AWS -p $(AWS_ACCESS_KEY_ID) -e none $(AWS_ECR_REGISTRY)
+      docker tag my-ecr-repo:latest $(AWS_ECR_REGISTRY)/my-ecr-repo:latest
+      docker push $(AWS_ECR_REGISTRY)/my-ecr-repo:latest
     displayName: 'Build, Tag, and Push Docker Image'
     env:
-      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
-      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
-      AWS_REGION: $(AWS_REGION)
-      ECR_REGISTRY: ${{ steps.login_ecr.outputs.registry }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ECR_REGISTRY: '<your-aws-account-id>.dkr.ecr.<your-aws-region>.amazonaws.com'
 
-- job: deploy_to_ecs_develop
-  displayName: 'Deploy Docker Image to AWS ECS (Develop)'
-  condition: eq(variables['Build.SourceBranch'], 'refs/heads/develop')
-  dependsOn: build_and_push_image
-  steps:
-  - script: |
-      aws ecs update-service --cluster deploy-cluster --service services-deploy --task-definition tarea-deploy --force-new-deployment
-    displayName: 'Update ECS Service'
-    env:
-      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
-      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
-      AWS_REGION: $(AWS_REGION)
-
-- job: deploy_to_ecs_testing
-  displayName: 'Deploy Docker Image to AWS ECS (Testing)'
-  condition: eq(variables['Build.SourceBranch'], 'refs/heads/testing')
-  dependsOn: build_and_push_image
-  steps:
-  - script: |
-      aws ecs update-service --cluster deploy-cluster --service services-deploy --task-definition tarea-deploy --force-new-deployment
-    displayName: 'Update ECS Service'
-    env:
-      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
-      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
-      AWS_REGION: $(AWS_REGION)
