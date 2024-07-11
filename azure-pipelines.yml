@@ -22,7 +22,7 @@ jobs:
       docker push $(AWS_ECR_REGISTRY)/my-ecr-repo:latest
     displayName: 'Build, Tag, and Push Docker Image'
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ AWS_SECRET_ACCESS_KEY }}
       AWS_ECR_REGISTRY: '<your-aws-account-id>.dkr.ecr.<your-aws-region>.amazonaws.com'
 
