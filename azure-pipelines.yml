@@ -1,11 +1,32 @@
-name: Deploy to Amazon ECR
+name: Build and Push Docker Image to Amazon ECR
 
 trigger:
   branches:
     include:
       - main  # Cambiar por la rama principal de tu repositorio
 
+variables:
+  awsRegion: 'us-east-1'
+  ecrRepository: 'ambientes'  # Nombre de tu repositorio en ECR
+  ecsCluster: 'deploy-cluster'  # Nombre de tu clúster ECS
+  ecsService: 'services-deploy'  # Nombre de tu servicio ECS
+  taskDefinition: 'tarea-deploy'  # Nombre de tu definición de tarea ECS
+
 jobs:
+
+- job: unit_testing_and_coverage
+  displayName: 'unit testing and coverage'
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '12.x'
+  - script: |
+      npm install
+      npm test
+ 
+
 - job: build_and_push_image
   displayName: 'Build and Push Docker Image to ECR'
   pool:
@@ -14,15 +35,46 @@ jobs:
   - checkout: self
 
   - script: |
-      # Instalar dependencias, si es necesario
-      # npm install, por ejemplo
-      docker build -t my-ecr-repo:latest .
-      docker login -u AWS -p $(AWS_ACCESS_KEY_ID) -e none $(AWS_ECR_REGISTRY)
-      docker tag my-ecr-repo:latest $(AWS_ECR_REGISTRY)/my-ecr-repo:latest
-      docker push $(AWS_ECR_REGISTRY)/my-ecr-repo:latest
+      # Instala Docker CLI
+      sudo apt-get update
+      sudo apt-get install -y docker.io
+
+      # Construye la imagen Docker
+      docker build -t my-docker-app .
+
+      # Obtiene las credenciales de ECR y autentica con Docker
+      aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+      # Etiqueta y empuja la imagen a ECR
+      docker tag my-docker-app:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:latest
+      docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:latest
     displayName: 'Build, Tag, and Push Docker Image'
     env:
-      AWS_ACCESS_KEY_ID: ${{ AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ AWS_SECRET_ACCESS_KEY }}
-      AWS_ECR_REGISTRY: '<your-aws-account-id>.dkr.ecr.<your-aws-region>.amazonaws.com'
+      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+      AWS_REGION: ${{ variables.awsRegion }}
+      AWS_ACCOUNT_ID: $(AWS_ACCOUNT_ID)
+      ECR_REPOSITORY: ${{ variables.ecrRepository }}
 
+- job: deploy_to_ecs
+  displayName: 'Deploy to Amazon ECS'
+  dependsOn: build_and_push_image
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - script: |
+      # Configura las credenciales de AWS
+      aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+      aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+      aws configure set region $AWS_REGION
+
+      # Actualiza el servicio ECS con la nueva imagen
+      aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition $TASK_DEFINITION --force-new-deployment
+    displayName: 'Update ECS Service'
+    env:
+      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+      AWS_REGION: ${{ variables.awsRegion }}
+      ECS_CLUSTER: ${{ variables.ecsCluster }}
+      ECS_SERVICE: ${{ variables.ecsService }}
+      TASK_DEFINITION: ${{ variables.taskDefinition }}
